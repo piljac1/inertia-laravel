@@ -5,6 +5,7 @@ namespace Inertia\Tests;
 use Illuminate\Http\Response;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Inertia\AsyncProp;
 use Inertia\Inertia;
 use Inertia\LazyProp;
 use Inertia\ResponseFactory;
@@ -87,5 +88,15 @@ class ResponseFactoryTest extends TestCase
         });
 
         $this->assertInstanceOf(LazyProp::class, $lazyProp);
+    }
+
+    public function test_can_create_async_prop()
+    {
+        $factory = new ResponseFactory();
+        $asyncProp = $factory->async(function () {
+            return 'An async value';
+        });
+
+        $this->assertInstanceOf(AsyncProp::class, $asyncProp);
     }
 }

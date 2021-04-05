@@ -12,6 +12,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Fluent;
 use Illuminate\View\View;
+use Inertia\AsyncProp;
 use Inertia\LazyProp;
 use Inertia\Response;
 
@@ -44,7 +45,7 @@ class ResponseTest extends TestCase
         $this->assertSame('Jonathan', $page['props']['user']['name']);
         $this->assertSame('/user/123', $page['url']);
         $this->assertSame('123', $page['version']);
-        $this->assertSame('<div id="app" data-page="{&quot;component&quot;:&quot;User\/Edit&quot;,&quot;props&quot;:{&quot;user&quot;:{&quot;name&quot;:&quot;Jonathan&quot;}},&quot;url&quot;:&quot;\/user\/123&quot;,&quot;version&quot;:&quot;123&quot;}"></div>'."\n", $view->render());
+        $this->assertSame('<div id="app" data-page="{&quot;component&quot;:&quot;User\/Edit&quot;,&quot;props&quot;:{&quot;user&quot;:{&quot;name&quot;:&quot;Jonathan&quot;}},&quot;url&quot;:&quot;\/user\/123&quot;,&quot;version&quot;:&quot;123&quot;}"></div>'."\r\n", $view->render());
     }
 
     public function test_xhr_response()
@@ -232,6 +233,44 @@ class ResponseTest extends TestCase
 
         $this->assertObjectNotHasAttribute('users', $page->props);
         $this->assertSame('A lazy value', $page->props->lazy);
+    }
+
+    public function test_async_props_are_not_included_by_default_but_async_prop_keys_are()
+    {
+        $request = Request::create('/users', 'GET');
+        $request->headers->add(['X-Inertia' => 'true']);
+
+        $asyncProp = new AsyncProp(function () {
+            return 'An async value';
+        });
+
+        $response = new Response('Users', ['users' => [], 'async' => $asyncProp], 'app', '123');
+        $response = $response->toResponse($request);
+        $page = $response->getData();
+
+        $this->assertSame([], $page->props->users);
+        $this->assertObjectNotHasAttribute('async', $page->props);
+        $this->assertSame(['async'], $page->asyncPropsToLoad);
+    }
+
+    public function test_async_props_are_included_in_partial_reload_but_async_prop_keys_are_not()
+    {
+        $request = Request::create('/users', 'GET');
+        $request->headers->add(['X-Inertia' => 'true']);
+        $request->headers->add(['X-Inertia-Partial-Component' => 'Users']);
+        $request->headers->add(['X-Inertia-Partial-Data' => 'async']);
+
+        $asyncProp = new AsyncProp(function () {
+            return 'An async value';
+        });
+
+        $response = new Response('Users', ['users' => [], 'async' => $asyncProp], 'app', '123');
+        $response = $response->toResponse($request);
+        $page = $response->getData();
+
+        $this->assertObjectNotHasAttribute('users', $page->props);
+        $this->assertSame('An async value', $page->props->async);
+        $this->assertObjectNotHasAttribute('asyncPropsToLoad', $page);
     }
 
     public function test_can_nest_props_using_dot_notation()
