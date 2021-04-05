@@ -64,6 +64,11 @@ class ResponseFactory
         return new LazyProp($callback);
     }
 
+    public function async(callable $callback)
+    {
+        return new AsyncProp($callback);
+    }
+
     public function render($component, $props = [])
     {
         if ($props instanceof Arrayable) {

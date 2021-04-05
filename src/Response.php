@@ -54,8 +54,9 @@ class Response implements Responsable
     public function toResponse($request)
     {
         $only = array_filter(explode(',', $request->header('X-Inertia-Partial-Data')));
+        $partialComponentRequested = $request->header('X-Inertia-Partial-Component') === $this->component;
 
-        $props = ($only && $request->header('X-Inertia-Partial-Component') === $this->component)
+        $props = ($only && $partialComponentRequested)
             ? Arr::only($this->props, $only)
             : array_filter($this->props, function ($prop) {
                 return ! ($prop instanceof LazyProp);
@@ -92,6 +93,18 @@ class Response implements Responsable
             'url' => $request->getRequestUri(),
             'version' => $this->version,
         ];
+
+        if (! $only || ! $partialComponentRequested) {
+            $asyncPropKeys = array_keys(
+                array_filter($this->props, function ($prop) {
+                    return $prop instanceof AsyncProp;
+                })
+            );
+
+            if ($asyncPropKeys) {
+                $page['asyncPropsToLoad'] = $asyncPropKeys;
+            }
+        }
 
         if ($request->header('X-Inertia')) {
             return new JsonResponse($page, 200, [
